@@ -40,8 +40,8 @@ def select_data(sql):
         return 0
 
 
-def handle_data(query):
-    df = select_data(query)
+def handle_data(sql_query):
+    df = select_data(sql_query)
 
     df['create_at'] = pd.to_datetime(df['create_at'])
     df['sales'] = pd.to_numeric(df['sales'])
@@ -55,7 +55,7 @@ def handle_data(query):
     product_list = df['product_link'].unique()
 
     # 创建一个字典来存储产品的增长量
-    growth_dict = {}
+    
     p_list = st.sidebar.multiselect(
         "选择你的产品链接，可模糊搜索", product_list
     )
@@ -64,8 +64,8 @@ def handle_data(query):
 
 # 绘制所有视频的播放量增长折线图
 
-
-def show_chart(pro_list, df, growth_dict):
+growth_dict = {}
+def show_chart(pro_list, df):
     for product_id in pro_list:
         filtered_df = df[df['product_link'] == product_id].copy()
         filtered_df['Growth'] = filtered_df['sales'].diff().fillna(0)
@@ -99,11 +99,11 @@ def show_chart(pro_list, df, growth_dict):
 
 
 def run():
-    df, product_list, p_list, growth_dict = handle_data(query)
+    df, product_list, p_list = handle_data(query)
     if not p_list:
-        show_chart(product_list, df, growth_dict)
+        show_chart(product_list, df)
     else:
-        show_chart(p_list, df, growth_dict)
+        show_chart(p_list, df)
 
 
 if __name__ == '__main__':
