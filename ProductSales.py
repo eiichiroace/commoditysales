@@ -40,8 +40,8 @@ def extract_country_and_product_from_link(link):
     parsed = urlparse(link)
     params = parse_qs(parsed.query)
     country = params.get('region', [None])[0]
-    product = parsed.path.split('/')[-1]
-    return country, product
+    product_id = parsed.path.split('/')[-1]
+    return country, product_id
 
 
 def handle_data(sql_query):
@@ -51,7 +51,7 @@ def handle_data(sql_query):
     df.sort_values(['product_link', 'create_at'], inplace=False)
 
     # Extract country and product from link
-    df['country'], df['product'] = zip(*df['product_link'].apply(extract_country_and_product_from_link))
+    df['country'], df['product_id'] = zip(*df['product_link'].apply(extract_country_and_product_from_link))
 
     product_name_mapping = {
         "1729609825194445394": "口喷",
@@ -61,7 +61,7 @@ def handle_data(sql_query):
         "1729689196463557202": "舌苔啫喱",
         "1729609916326447698": "牙膏"
     }
-    df['product'] = df['product'].map(product_name_mapping)
+    df['product'] = df['product_id'].map(product_name_mapping)
 
     # Sidebar filters
     selected_countries = st.sidebar.multiselect("选择国家", df['country'].unique(), default=df['country'].unique())
