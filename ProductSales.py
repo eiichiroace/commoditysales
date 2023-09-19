@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 from streamlit.logger import get_logger
+from urllib.parse import urlparse, parse_qs
 
 LOGGER = get_logger(__name__)
 
@@ -27,83 +28,71 @@ query = f"""
 def select_data(sql):
     # 查询数据
     result = conn.query(sql, ttl=3600)
-
-    # 检查查询结果是否为空
     if result is not None:
-        # 查询结果不为空，可以直接使用查询结果进行进一步的操作
         df = result
         return df
-        # 现在可以使用 DataFrame 'df' 进行进一步的操作
     else:
-        # 查询结果为空，可以在这里添加相应的处理逻辑
         st.warning("查询结果为空")
         return 0
 
 
+def extract_country_and_product_from_link(link):
+    parsed = urlparse(link)
+    params = parse_qs(parsed.query)
+    country = params.get('region', [None])[0]
+    product = parsed.path.split('/')[-1]
+    return country, product
+
+
 def handle_data(sql_query):
     df = select_data(sql_query)
-
     df['create_at'] = pd.to_datetime(df['create_at'])
     df['sales'] = pd.to_numeric(df['sales'])
-    # 按 'VideoID' 列和 'Timestamp' 列对数据进行排序
     df.sort_values(['product_link', 'create_at'], inplace=False)
 
-    # 创建Streamlit应用程序
+    # Extract country and product from link
+    df['country'], df['product'] = zip(*df['product_link'].apply(extract_country_and_product_from_link))
+
+    product_name_mapping = {
+        "1729609825194445394": "口喷",
+        "1729615303577733714": "牙膏",
+        "1729652361741044306": "口喷",
+        "1729565221372005095": "奶粉",
+        "1729689196463557202": "舌苔啫喱",
+        "1729609916326447698": "牙膏"
+    }
+    df['product'] = df['product'].map(product_name_mapping)
+
+    # Sidebar filters
+    selected_countries = st.sidebar.multiselect("选择国家", df['country'].unique(), default=df['country'].unique())
+    selected_products = st.sidebar.multiselect("选择产品", df['product'].unique(), default=df['product'].unique())
+
+    filtered_df = df[df['country'].isin(selected_countries) & df['product'].isin(selected_products)]
+
+    return filtered_df
+
+
+def show_chart(df):
     st.title(':rainbow[重点产品销量趋势]:rainbow:')
 
-    # 获取所有不同视频的列表
-    product_list = df['product_link'].unique()
+    # Calculate growth for each product link
+    df['Growth'] = df.groupby('product_link')['sales'].diff().fillna(0)
 
-    # 创建一个字典来存储产品的增长量
-    
-    p_list = st.sidebar.multiselect(
-        "选择你的产品链接，可模糊搜索", product_list
-    )
-    return df, product_list, p_list, growth_dict
+    # Sort product links by total growth
+    total_growth = df.groupby('product_link')['Growth'].sum().sort_values(ascending=False)
 
-
-# 绘制所有视频的播放量增长折线图
-
-growth_dict = {}
-def show_chart(pro_list, df):
-    for product_id in pro_list:
-        filtered_df = df[df['product_link'] == product_id].copy()
-        filtered_df['Growth'] = filtered_df['sales'].diff().fillna(0)
-
-        # 计算总增长量
-        total_growth = filtered_df['Growth'].sum()
-
-        # 存储总增长量到字典中
-        growth_dict[product_id] = total_growth
-        # 对字典按值（增长量）降序排序
-    sorted_growth_dict = dict(sorted(growth_dict.items(), key=lambda item: item[1], reverse=True))
-    # 遍历排好序的产品，并绘制增长量折线图
-    for product_id in sorted_growth_dict.keys():
-        filtered_df = df[df['product_link'] == product_id].copy()
-        filtered_df['Growth'] = filtered_df['sales'].diff().fillna(0)
-
-        # 对增长量列进行排序
-        filtered_df.sort_values(by='Growth', ascending=False, inplace=True)
-
-        # 移除 'product_link' 列和 '_id' 列
-        filtered_df = filtered_df.drop(['product_link', '_id'], axis=1)
-
-        # 显示增长量总和
-        total_growth = filtered_df['Growth'].sum()
-        st.write(f'Total Growth for {product_id}: {int(total_growth)}')
+    for product_link in total_growth.index:
+        product_df = df[df['product_link'] == product_link]
+        st.write(f'Total Growth for {product_link}: {int(total_growth[product_link])}')
         col1, col2 = st.columns([3, 1])
-        filtered_df.sort_values(['sales'], ascending=False, inplace=True)
-        col2.write(filtered_df)
-        # 绘制增长量折线图
-        col1.line_chart(filtered_df[['create_at', 'Growth']], x='create_at', y='Growth')
+        product_df.sort_values(['sales'], ascending=False, inplace=True)
+        col2.write(product_df)
+        col1.line_chart(product_df[['create_at', 'Growth']], x='create_at', y='Growth')
 
 
 def run():
-    df, product_list, p_list = handle_data(query)
-    if not p_list:
-        show_chart(product_list, df)
-    else:
-        show_chart(p_list, df)
+    df = handle_data(query)
+    show_chart(df)
 
 
 if __name__ == '__main__':
