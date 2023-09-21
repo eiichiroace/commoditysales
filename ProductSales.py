@@ -80,10 +80,15 @@ def show_chart(df):
 
     # Sort product links by total growth
     total_growth = df.groupby('product_link')['Growth'].sum().sort_values(ascending=False)
-
+    
     for product_link in total_growth.index:
         product_df = df[df['product_link'] == product_link]
-        st.write(f'Total Growth for {product_link}: {int(total_growth[product_link])}')
+        product_name = product_df['product'].iloc[0]  # 获取产品名称
+        link_label = "查看产品"
+        markdown_link = f"[{link_label}]({product_link})"
+        st.markdown(f'{product_name} - 销售量: {int(total_growth[product_link])} - {markdown_link}', unsafe_allow_html=True)
+        
+        # st.write(f'{product_name}Total Growth for {product_link}: {int(total_growth[product_link])}')
         col1, col2 = st.columns([3, 1])
         product_df.sort_values(['sales'], ascending=False, inplace=True)
         col2.write(product_df)
