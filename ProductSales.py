@@ -20,11 +20,11 @@ def initial_connection():
 
 conn = initial_connection()
 query = f"""
-     select * from kj_data.KeyProductSales;
+     select * from kj_data.product_sales_info;
      """
 
 
-@st.cache_data(ttl=3600, show_spinner="Fetching data from API...")
+@st.cache_data(ttl=600, show_spinner="Fetching data from API...")
 def select_data(sql):
     # 查询数据
     result = conn.query(sql, ttl=3600)
