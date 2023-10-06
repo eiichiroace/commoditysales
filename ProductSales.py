@@ -24,10 +24,10 @@ query = f"""
      """
 
 
-@st.cache_data(ttl=600, show_spinner="Fetching data from API...")
+@st.cache_data(ttl=60, show_spinner="Fetching data from API...")
 def select_data(sql):
     # 查询数据
-    result = conn.query(sql, ttl=3600)
+    result = conn.query(sql)
     if result is not None:
         df = result
         return df
@@ -74,7 +74,8 @@ def handle_data(sql_query):
 
 def show_chart(df):
     st.title(':rainbow[重点产品销量趋势]:rainbow:')
-
+    if st.button("Clear all"):
+        st.cache_data.clear
     # Calculate growth for each product link
     df['Growth'] = df.groupby('product_link')['sales'].diff().fillna(0)
 
