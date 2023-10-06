@@ -20,7 +20,7 @@ def initial_connection():
 
 conn = initial_connection()
 query = f"""
-     select * from kj_data.product_sales_info;
+     select * from kj_data.KeyProductSales;
      """
 
 
