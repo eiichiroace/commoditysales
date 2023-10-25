@@ -24,10 +24,10 @@ query = f"""
      """
 
 
-@st.cache_data(ttl=60, show_spinner="Fetching data from API...")
+@st.cache_data(ttl=3600, show_spinner="Fetching data from API...")
 def select_data(sql):
     # 查询数据
-    result = conn.query(sql)
+    result = conn.query(sql, ttl=3600)
     if result is not None:
         df = result
         return df
@@ -39,9 +39,16 @@ def select_data(sql):
 def extract_country_and_product_from_link(link):
     parsed = urlparse(link)
     params = parse_qs(parsed.query)
-    country = params.get('region', [None])[0]
+    country = params.get('region', ['US'])[0]
     product_id = parsed.path.split('/')[-1]
     return country, product_id
+
+
+def load_mapping_from_csv(csv_path):
+    df = pd.read_csv(csv_path)
+    product_mapping = df.set_index(df['PID（US）'].astype(str))['product_name'].to_dict()
+    # print(product_mapping)
+    return product_mapping
 
 
 def handle_data(sql_query):
@@ -53,15 +60,20 @@ def handle_data(sql_query):
     # Extract country and product from link
     df['country'], df['product_id'] = zip(*df['product_link'].apply(extract_country_and_product_from_link))
 
-    product_name_mapping = {
-        "1729609825194445394": "口喷",
-        "1729615303577733714": "牙膏",
-        "1729652361741044306": "口喷",
-        "1729565221372005095": "奶粉",
-        "1729689196463557202": "舌苔啫喱",
-        "1729609916326447698": "牙膏"
-    }
-    df['product'] = df['product_id'].map(product_name_mapping)
+    # product_name_mapping = {
+    #     "1729609825194445394": "口喷",
+    #     "1729615303577733714": "牙膏",
+    #     "1729652361741044306": "口喷",
+    #     "1729565221372005095": "奶粉",
+    #     "1729689196463557202": "舌苔啫喱",
+    #     "1729609916326447698": "牙膏"
+    # }
+
+    product_name_mapping = load_mapping_from_csv(
+        r'C:\Users\Administrator\PycharmProjects\product_increase\pages\product_name_id.csv')
+    # 检验提取的product_id 是否在映射中
+
+    df['product'] = df['product_id'].map(lambda x: product_name_mapping.get(x, "Unknown Product"))
 
     # Sidebar filters
     selected_countries = st.sidebar.multiselect("选择国家", df['country'].unique(), default=df['country'].unique())
@@ -74,21 +86,21 @@ def handle_data(sql_query):
 
 def show_chart(df):
     st.title(':rainbow[重点产品销量趋势]:rainbow:')
-    if st.button("Clear all"):
-        st.cache_data.clear
+
     # Calculate growth for each product link
     df['Growth'] = df.groupby('product_link')['sales'].diff().fillna(0)
 
     # Sort product links by total growth
     total_growth = df.groupby('product_link')['Growth'].sum().sort_values(ascending=False)
-    
+
     for product_link in total_growth.index:
         product_df = df[df['product_link'] == product_link]
         product_name = product_df['product'].iloc[0]  # 获取产品名称
         link_label = "查看产品"
         markdown_link = f"[{link_label}]({product_link})"
-        st.markdown(f'{product_name} - 销售量: {int(total_growth[product_link])} - {markdown_link}', unsafe_allow_html=True)
-        
+        st.markdown(f'{product_name} - 销售量增长: {int(total_growth[product_link])} - {markdown_link}',
+                    unsafe_allow_html=True)
+
         # st.write(f'{product_name}Total Growth for {product_link}: {int(total_growth[product_link])}')
         col1, col2 = st.columns([3, 1])
         product_df.sort_values(['sales'], ascending=False, inplace=True)
