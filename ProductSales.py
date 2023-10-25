@@ -69,8 +69,7 @@ def handle_data(sql_query):
     #     "1729609916326447698": "牙膏"
     # }
 
-    product_name_mapping = load_mapping_from_csv(
-        r'C:\Users\Administrator\PycharmProjects\product_increase\pages\product_name_id.csv')
+    product_name_mapping = load_mapping_from_csv(r'pages/product_name_id.csv')
     # 检验提取的product_id 是否在映射中
 
     df['product'] = df['product_id'].map(lambda x: product_name_mapping.get(x, "Unknown Product"))
