@@ -2,6 +2,6 @@ numpy==1.25.2
 pandas==2.1.0
 SQLAlchemy==2.0.20
 st-pages==0.4.4
-streamlit==1.26.0
+streamlit==1.28.0
 toml==0.10.2
 pymysql
